@@ -28,6 +28,14 @@ class SegmentationModule(SegmentationModuleBase):
 
     def forward(self, feed_dict, *, segSize=None):
         # training
+        if type(feed_dict) is list:
+                feed_dict = feed_dict[0]
+                if torch.cuda.is_available():
+                    feed_dict['img_data'] = feed_dict['img_data'].cuda()
+                    feed_dict['seg_label'] = feed_dict['seg_label'].cuda()
+                else:
+                    raise RuntimeError('Cannot convert torch.Floattensor into torch.cuda.FloatTensor')
+        
         if segSize is None:
             if self.deep_sup_scale is not None: # use deep supervision technique
                 (pred, pred_deepsup) = self.decoder(self.encoder(feed_dict['img_data'], return_feature_maps=True))
@@ -105,8 +113,17 @@ class ModelBuilder:
         # net_encoder.apply(ModelBuilder.weights_init)
         if len(weights) > 0:
             print('Loading weights for net_encoder')
-            net_encoder.load_state_dict(
-                torch.load(weights, map_location=lambda storage, loc: storage), strict=False)
+            # convert 150 classes (original) to 101 classes (ours)
+            # reference: https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113/2
+            pretrained_dict = torch.load(weights, map_location=lambda storage, loc: storage)
+            net_dict = net_encoder.state_dict()
+            # 1. filter out unnecessary keys
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() 
+                               if (k in net_dict) and (v.size() == net_dict[k].size())}
+            # 2. overwrite entries in the existing state dict
+            net_dict.update(pretrained_dict)
+            # 3. load the new state dict
+            net_encoder.load_state_dict(pretrained_dict, strict=False)
         return net_encoder
 
     @staticmethod
@@ -152,8 +169,16 @@ class ModelBuilder:
         net_decoder.apply(ModelBuilder.weights_init)
         if len(weights) > 0:
             print('Loading weights for net_decoder')
-            net_decoder.load_state_dict(
-                torch.load(weights, map_location=lambda storage, loc: storage), strict=False)
+            # convert 150 classes (original) to 101 classes (ours)
+            # reference: https://discuss.pytorch.org/t/how-to-load-part-of-pre-trained-model/1113/2
+            pretrained_dict = torch.load(weights, map_location=lambda storage, loc: storage)
+            net_dict = net_decoder.state_dict()
+            # 1. filter out unnecessary keys
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if (k in net_dict) and (v.size() == net_dict[k].size())}
+            # 2. overwrite entries in the existing state dict
+            net_dict.update(pretrained_dict)
+            # 3. load the new state dict
+            net_decoder.load_state_dict(pretrained_dict, strict=False)
         return net_decoder
 
 

@@ -1,6 +1,7 @@
 import os
 import cv2
 import json
+import argparse
 
 def odgt(img_path):
     seg_path = img_path.replace('images','annotations')
@@ -23,17 +24,21 @@ def odgt(img_path):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=int, default=1)
+    args = parser.parse_args()
+    
     modes = ['train','val']
-    saves = ['metal_training.odgt', 'metal_validation.odgt'] # customized
+    saves = [f'dataset{args.dataset}_training.odgt', f'dataset{args.dataset}_validation.odgt'] # customized
 
     for i, mode in enumerate(modes):
         save = saves[i]
-        dir_path = f"your/data/{mode}"
+        dir_path = f"data/dataset{args.dataset}/images/{mode}"
         img_list = os.listdir(dir_path)
         img_list.sort()
         img_list = [os.path.join(dir_path, img) for img in img_list]
 
-        with open(f'~/semantic-segmentation-pytorch/data/{save}', mode='wt', encoding='utf-8') as myodgt:
+        with open(f'data/{save}', mode='wt', encoding='utf-8') as myodgt:
             for i, img in enumerate(img_list):
                 a_odgt = odgt(img)
                 if a_odgt is not None:

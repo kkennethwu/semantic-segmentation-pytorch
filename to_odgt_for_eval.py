@@ -1,6 +1,7 @@
 import os
 import cv2
 import json
+import argparse
 
 def odgt(img_path):
     seg_path = img_path.replace('images','annotations')
@@ -25,9 +26,14 @@ def odgt(img_path):
 if __name__ == "__main__":
     # modes = ['train','val']
     # saves = ['dataset2_training.odgt', 'dataset2_validation.odgt'] # customized
-    save = 'collected_data_floor1.odgt'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--floor", type=str, default='first_floor', choices=['first_floor', 'second_floor'], help='first_floor or second_floor')
+    args = parser.parse_args()
     
-    dir_path = f"../../hw1/data_collection/first_floor/rgb/"
+    
+    save = f'collected_data_{args.floor}.odgt'
+    dir_path = f"../{args.floor}/images/val/"
     img_list = os.listdir(dir_path)
     img_list.sort()
     img_list = [os.path.join(dir_path, img) for img in img_list]

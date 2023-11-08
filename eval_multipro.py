@@ -18,9 +18,14 @@ from mit_semseg.lib.nn import user_scattered_collate, async_copy_to
 from mit_semseg.lib.utils import as_numpy
 from PIL import Image
 from tqdm import tqdm
+import pandas as pd
 
-colors = loadmat('data/color150.mat')['colors']
+# colors = loadmat('data/color150.mat')['colors'] # shape [150, 3]
+colors = loadmat('data/color101.mat')['colors'] # shape [101, 3]
 
+def read_xlsx(path):
+    df = pd.read_excel(path)
+    return df['label'].to_list()
 
 def visualize_result(data, pred, dir_result):
     (img, seg, info) = data
@@ -77,7 +82,7 @@ def evaluate(segmentation_module, loader, cfg, gpu_id, result_queue):
             visualize_result(
                 (batch_data['img_ori'], seg_label, batch_data['info']),
                 pred,
-                os.path.join(cfg.DIR, 'result')
+                os.path.join(cfg.DIR, args.result)
             )
 
 
@@ -160,8 +165,12 @@ def main(cfg, gpus):
     # summary
     iou = intersection_meter.sum / (union_meter.sum + 1e-10)
     for i, _iou in enumerate(iou):
-        print('class [{}], IoU: {:.4f}'.format(i, _iou))
-
+            print('class [{}], IoU: {:.4f}'.format(i, _iou))
+    # check apartment0_classes.xlsx to calculate the mIOU of 49 categories in apartment_0.
+    # because the target of the evaluation dataset does not contain certain categories.
+    # Thus, these categories should not be used in the calculation of mIOU.
+    iou_list = read_xlsx('data/apartment0_classes.xlsx')
+    iou = iou[iou_list]
     print('[Eval Summary]:')
     print('Mean IoU: {:.4f}, Accuracy: {:.2f}%'
           .format(iou.mean(), acc_meter.average()*100))
@@ -194,6 +203,7 @@ if __name__ == '__main__':
         default=None,
         nargs=argparse.REMAINDER,
     )
+    parser.add_argument("--result", type=str, choices=['result', 'floor1', 'floor2'], default='result', help="result folder name")
     args = parser.parse_args()
 
     cfg.merge_from_file(args.cfg)
@@ -212,8 +222,8 @@ if __name__ == '__main__':
     assert os.path.exists(cfg.MODEL.weights_encoder) and \
         os.path.exists(cfg.MODEL.weights_decoder), "checkpoint does not exitst!"
 
-    if not os.path.isdir(os.path.join(cfg.DIR, "result")):
-        os.makedirs(os.path.join(cfg.DIR, "result"))
+    if not os.path.isdir(os.path.join(cfg.DIR, f"{args.result}")):
+        os.makedirs(os.path.join(cfg.DIR, f"{args.result}"))
 
     # Parse gpu ids
     gpus = parse_devices(args.gpus)
